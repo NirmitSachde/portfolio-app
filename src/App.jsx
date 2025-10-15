@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Menu, X, Laptop, ExternalLink, Github, Download, Eye, EyeOff, Save, Plus, Trash2, LogOut, BarChart3, Database, TrendingUp, PieChart, LineChart, Activity, Code, Brain, Zap, Target, Lightbulb, ChevronDown, Mail, Phone, Linkedin, Instagram, Twitter } from 'lucide-react';
+import { db, auth } from './firebase';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 
 const PortfolioContext = createContext();
 
@@ -58,88 +61,113 @@ const initialData = {
     twitter: { value: "", visible: true }
   },
   settings: {
-    showResume: true,
-    adminPassword: "admin123"
-  }
-};
-
-const storage = {
-  get: (key) => {
-    try {
-      const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : null;
-    } catch (error) {
-      console.error('Error reading from storage:', error);
-      return null;
-    }
-  },
-  set: (key, value) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-      console.error('Error writing to storage:', error);
-    }
+    showResume: true
   }
 };
 
 const PortfolioProvider = ({ children }) => {
-  const [data, setData] = useState(() => {
-    const saved = storage.get('portfolioData');
-    return saved || initialData;
-  });
+  const [data, setData] = useState(initialData);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    storage.set('portfolioData', data);
-  }, [data]);
+    const unsubscribe = onSnapshot(
+      doc(db, 'portfolio', 'data'),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setData(docSnap.data());
+        } else {
+          setDoc(doc(db, 'portfolio', 'data'), initialData);
+        }
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching portfolio data:', error);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  const saveToFirebase = async (newData) => {
+    try {
+      await setDoc(doc(db, 'portfolio', 'data'), newData);
+    } catch (error) {
+      console.error('Error saving to Firebase:', error);
+      alert('Error saving data. Please try again.');
+    }
+  };
 
   const updateSection = (section, newData) => {
-    setData(prev => ({
-      ...prev,
-      [section]: { ...prev[section], ...newData }
-    }));
+    const updatedData = {
+      ...data,
+      [section]: { ...data[section], ...newData }
+    };
+    setData(updatedData);
+    saveToFirebase(updatedData);
   };
 
   const addProject = (project) => {
-    setData(prev => ({
-      ...prev,
-      projects: [...prev.projects, { ...project, id: Date.now(), visible: true }]
-    }));
+    const updatedData = {
+      ...data,
+      projects: [...data.projects, { ...project, id: Date.now(), visible: true }]
+    };
+    setData(updatedData);
+    saveToFirebase(updatedData);
   };
 
   const updateProject = (id, updates) => {
-    setData(prev => ({
-      ...prev,
-      projects: prev.projects.map(p => p.id === id ? { ...p, ...updates } : p)
-    }));
+    const updatedData = {
+      ...data,
+      projects: data.projects.map(p => p.id === id ? { ...p, ...updates } : p)
+    };
+    setData(updatedData);
+    saveToFirebase(updatedData);
   };
 
   const deleteProject = (id) => {
-    setData(prev => ({
-      ...prev,
-      projects: prev.projects.filter(p => p.id !== id)
-    }));
+    const updatedData = {
+      ...data,
+      projects: data.projects.filter(p => p.id !== id)
+    };
+    setData(updatedData);
+    saveToFirebase(updatedData);
   };
 
   const addResume = (resume) => {
-    setData(prev => ({
-      ...prev,
-      resumes: [...prev.resumes, { ...resume, id: Date.now(), visible: true }]
-    }));
+    const updatedData = {
+      ...data,
+      resumes: [...data.resumes, { ...resume, id: Date.now(), visible: true }]
+    };
+    setData(updatedData);
+    saveToFirebase(updatedData);
   };
 
   const updateResume = (id, updates) => {
-    setData(prev => ({
-      ...prev,
-      resumes: prev.resumes.map(r => r.id === id ? { ...r, ...updates } : r)
-    }));
+    const updatedData = {
+      ...data,
+      resumes: data.resumes.map(r => r.id === id ? { ...r, ...updates } : r)
+    };
+    setData(updatedData);
+    saveToFirebase(updatedData);
   };
 
   const deleteResume = (id) => {
-    setData(prev => ({
-      ...prev,
-      resumes: prev.resumes.filter(r => r.id !== id)
-    }));
+    const updatedData = {
+      ...data,
+      resumes: data.resumes.filter(r => r.id !== id)
+    };
+    setData(updatedData);
+    saveToFirebase(updatedData);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <PortfolioContext.Provider value={{
@@ -261,7 +289,6 @@ const Hero = () => {
   useEffect(() => {
     setIsVisible(true);
     
-    // Typing animation for name
     let index = 0;
     const name = data.hero.name;
     const typingInterval = setInterval(() => {
@@ -273,7 +300,6 @@ const Hero = () => {
       }
     }, 100);
 
-    // Blinking cursor
     const cursorInterval = setInterval(() => {
       setShowCursor(prev => !prev);
     }, 500);
@@ -372,13 +398,6 @@ const Hero = () => {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
           50% { transform: translateY(-20px) rotate(5deg); }
         }
-        @keyframes fade-in {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-          animation: fade-in 1s ease-out;
-        }
       `}</style>
     </div>
   );
@@ -407,61 +426,20 @@ const About = () => {
   if (!data.about.visible) return null;
 
   const skillIcons = {
-    // Languages
-    'Python': Code,
-    'R': Activity,
-    'SQL': Database,
-    'HTML': Code,
-    'JavaScript': Code,
-    'C': Code,
-    // Databases
-    'MongoDB': Database,
-    'Firebase': Database,
-    'MySQL': Database,
-    'Oracle': Database,
-    'PostgreSQL': Database,
-    'SQLite': Database,
-    'MySQL Workbench': Database,
-    // Tools
-    'Tableau': PieChart,
-    'Power BI': BarChart3,
-    'AWS Glue': TrendingUp,
-    'Microsoft Excel': LineChart,
-    'Salesforce': TrendingUp,
-    'JIRA': Target,
-    'Spark': Zap,
-    'Hadoop': Zap,
-    'Power Apps': Activity,
-    'Power Automate': Activity,
-    'SharePoint': Database,
-    // Libraries
-    'pandas': Activity,
-    'seaborn': LineChart,
-    'matplotlib': PieChart,
-    'scikit-learn': Brain,
-    'scipy': Activity,
-    'TensorFlow': Brain,
-    'Keras': Brain,
-    'PyTorch': Brain,
-    'plotly': LineChart,
-    'dash': BarChart3,
-    'geopandas': Activity,
-    'ArcGIS': Activity,
-    // Methodologies
-    'Agile': Target,
-    'Scrum': Target,
-    'Sprint Planning': Target,
-    'Stand-ups': Target,
-    'Retrospectives': Target
+    'Python': Code, 'R': Activity, 'SQL': Database, 'HTML': Code, 'JavaScript': Code, 'C': Code,
+    'MongoDB': Database, 'Firebase': Database, 'MySQL': Database, 'Oracle': Database, 'PostgreSQL': Database, 
+    'SQLite': Database, 'MySQL Workbench': Database, 'Tableau': PieChart, 'Power BI': BarChart3,
+    'AWS Glue': TrendingUp, 'Microsoft Excel': LineChart, 'Salesforce': TrendingUp, 'JIRA': Target,
+    'Spark': Zap, 'Hadoop': Zap, 'Power Apps': Activity, 'Power Automate': Activity, 'SharePoint': Database,
+    'pandas': Activity, 'seaborn': LineChart, 'matplotlib': PieChart, 'scikit-learn': Brain,
+    'scipy': Activity, 'TensorFlow': Brain, 'Keras': Brain, 'PyTorch': Brain, 'plotly': LineChart,
+    'dash': BarChart3, 'geopandas': Activity, 'ArcGIS': Activity, 'Agile': Target, 'Scrum': Target,
+    'Sprint Planning': Target, 'Stand-ups': Target, 'Retrospectives': Target
   };
 
   const categoryIcons = {
-    'Languages': Code,
-    'Database': Database,
-    'Tools': Activity,
-    'Libraries': Brain,
-    'Frameworks & Methodologies': Target,
-    'Big Data & Cloud': Zap
+    'Languages': Code, 'Database': Database, 'Tools': Activity, 'Libraries': Brain,
+    'Frameworks & Methodologies': Target, 'Big Data & Cloud': Zap
   };
 
   const skillCategories = data.about.skillCategories || [];
@@ -515,9 +493,6 @@ const About = () => {
                       <div 
                         key={idx} 
                         className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center hover:border-blue-500 transition-all duration-300 hover:scale-105 group"
-                        style={{ 
-                          animation: `fade-in 0.5s ease-out ${(catIdx * 0.2) + (idx * 0.05)}s both` 
-                        }}
                       >
                         <Icon className="w-5 h-5 text-blue-400 mx-auto mb-1 group-hover:scale-110 transition-transform" />
                         <span className="text-blue-400 text-xs">{skill}</span>
@@ -877,15 +852,23 @@ const Footer = () => {
 };
 
 const AdminLogin = ({ onLogin }) => {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { data } = usePortfolio();
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
-    if (password === data.settings.adminPassword) {
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       onLogin();
-    } else {
-      setError('Incorrect password');
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Invalid email or password');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -893,18 +876,29 @@ const AdminLogin = ({ onLogin }) => {
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="bg-gray-800 rounded-xl p-8 max-w-md w-full border border-gray-700">
         <h2 className="text-2xl font-bold text-white mb-6">Admin Login</h2>
-        <div>
+        <div className="space-y-4">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Admin Email"
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+          />
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSubmit()}
-            placeholder="Enter admin password"
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white mb-4 focus:outline-none focus:border-blue-500"
+            placeholder="Password"
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
           />
-          {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
-          <button onClick={handleSubmit} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg transition">
-            Login
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <button 
+            onClick={handleSubmit} 
+            disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg transition disabled:opacity-50"
+          >
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </div>
       </div>
@@ -984,6 +978,10 @@ const AdminDashboard = ({ onClose }) => {
   const handleCoverPhotoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 1000000) {
+        alert('File size should be less than 1MB for best performance');
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setNewProject({
@@ -998,6 +996,10 @@ const AdminDashboard = ({ onClose }) => {
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 1000000) {
+        alert('File size should be less than 1MB. For larger files, use Google Drive links.');
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setNewFile({
@@ -1253,7 +1255,7 @@ const AdminDashboard = ({ onClose }) => {
                   <span className="text-gray-500 text-sm">OR</span>
                   <label className="flex-1 cursor-pointer">
                     <div className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-center hover:border-blue-500 transition">
-                      <span className="text-blue-400 text-sm">📁 Upload from Device</span>
+                      <span className="text-blue-400 text-sm">📁 Upload from Device (Max 1MB)</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -1288,20 +1290,20 @@ const AdminDashboard = ({ onClose }) => {
                 />
                 
                 <div className="border-t border-gray-700 pt-4">
-                  <label className="block text-gray-400 mb-2 font-semibold">Additional Files (PDFs, Notebooks, Reports, etc.)</label>
+                  <label className="block text-gray-400 mb-2 font-semibold">Additional Files</label>
                   <div className="bg-gray-900 rounded-lg p-4 space-y-3">
                     <div className="space-y-2">
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          placeholder="File Name (e.g., report.pdf, analysis.ipynb)"
+                          placeholder="File Name"
                           value={newFile.name}
                           onChange={(e) => setNewFile({...newFile, name: e.target.value})}
                           className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
                         />
                         <input
                           type="text"
-                          placeholder="File URL (Google Drive, Dropbox, etc.)"
+                          placeholder="File URL"
                           value={newFile.url}
                           onChange={(e) => setNewFile({...newFile, url: e.target.value})}
                           className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
@@ -1310,7 +1312,7 @@ const AdminDashboard = ({ onClose }) => {
                           onClick={handleAddFile}
                           className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition text-sm whitespace-nowrap"
                         >
-                          Add File
+                          Add
                         </button>
                       </div>
                       
@@ -1322,7 +1324,7 @@ const AdminDashboard = ({ onClose }) => {
                       
                       <label className="block cursor-pointer">
                         <div className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-center hover:border-blue-500 transition">
-                          <span className="text-blue-400 text-sm">📎 Upload File from Device</span>
+                          <span className="text-blue-400 text-sm">📎 Upload File (Max 1MB)</span>
                           <input
                             type="file"
                             accept=".pdf,.ipynb,.py,.csv,.xlsx,.xls,.doc,.docx,.ppt,.pptx,.txt,.json"
@@ -1335,15 +1337,12 @@ const AdminDashboard = ({ onClose }) => {
                     
                     {newProject.additionalFiles && newProject.additionalFiles.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-xs text-gray-500">Files to be added:</p>
+                        <p className="text-xs text-gray-500">Files:</p>
                         {newProject.additionalFiles.map((file, idx) => (
                           <div key={idx} className="flex items-center justify-between bg-gray-800 rounded px-3 py-2">
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <Download className="w-4 h-4 text-blue-400 flex-shrink-0" />
                               <span className="text-white text-sm truncate">{file.name}</span>
-                              {file.url.startsWith('data:') && (
-                                <span className="text-xs text-green-400 flex-shrink-0">✓ Uploaded</span>
-                              )}
                             </div>
                             <button
                               onClick={() => handleRemoveFile(idx)}
@@ -1355,10 +1354,6 @@ const AdminDashboard = ({ onClose }) => {
                         ))}
                       </div>
                     )}
-                    
-                    <p className="text-xs text-gray-500 mt-2">
-                      💡 Tip: You can either paste a URL from Google Drive/Dropbox OR upload files directly from your device.
-                    </p>
                   </div>
                 </div>
 
@@ -1370,7 +1365,7 @@ const AdminDashboard = ({ onClose }) => {
                         className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition"
                       >
                         <Save className="w-4 h-4" />
-                        Update Project
+                        Update
                       </button>
                       <button
                         onClick={handleCancelEdit}
@@ -1430,7 +1425,7 @@ const AdminDashboard = ({ onClose }) => {
                   </div>
                   {project.additionalFiles && project.additionalFiles.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-700">
-                      <p className="text-xs text-gray-500 mb-2">Additional Files: {project.additionalFiles.length}</p>
+                      <p className="text-xs text-gray-500 mb-2">Files: {project.additionalFiles.length}</p>
                       <div className="flex flex-wrap gap-2">
                         {project.additionalFiles.map((file, idx) => (
                           <span key={idx} className="text-blue-400 text-xs bg-gray-900 px-2 py-1 rounded">
@@ -1453,7 +1448,7 @@ const AdminDashboard = ({ onClose }) => {
               <div className="space-y-4">
                 <input
                   type="text"
-                  placeholder="Resume Title (e.g., Data Analyst Resume) *"
+                  placeholder="Resume Title *"
                   value={newResume.title}
                   onChange={(e) => setNewResume({...newResume, title: e.target.value})}
                   className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
@@ -1469,12 +1464,11 @@ const AdminDashboard = ({ onClose }) => {
                   <p className="mb-2 font-semibold text-blue-400">📋 How to get Google Drive File ID:</p>
                   <ol className="list-decimal ml-5 space-y-1">
                     <li>Upload your resume to Google Drive</li>
-                    <li>Right-click the file → Share → Change to Anyone with the link</li>
-                    <li>Copy the sharing link</li>
-                    <li>Extract the FILE_ID from the URL</li>
+                    <li>Right-click → Share → Change to Anyone with the link</li>
+                    <li>Copy the link</li>
+                    <li>Extract FILE_ID from URL</li>
                     <li>Paste only the FILE_ID above</li>
                   </ol>
-                  <p className="mt-2 text-xs text-gray-500">Example ID: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs</p>
                 </div>
                 <button
                   onClick={handleAddResume}
@@ -1520,19 +1514,27 @@ const AdminDashboard = ({ onClose }) => {
           <div className="bg-gray-800 rounded-xl p-6 space-y-6">
             <h3 className="text-xl font-bold text-white mb-4">Contact Information</h3>
             
-            <div className="space-y-4">
-              <div className="bg-gray-900 rounded-lg p-4">
+            {[
+              { key: 'personalEmail', icon: Mail, label: 'Personal Email', type: 'email', placeholder: 'your@email.com' },
+              { key: 'orgEmail', icon: Mail, label: 'Organization Email', type: 'email', placeholder: 'your@company.com' },
+              { key: 'phone', icon: Phone, label: 'Phone Number', type: 'tel', placeholder: '+1 (555) 123-4567' },
+              { key: 'linkedin', icon: Linkedin, label: 'LinkedIn URL', type: 'url', placeholder: 'https://linkedin.com/in/...' },
+              { key: 'github', icon: Github, label: 'GitHub URL', type: 'url', placeholder: 'https://github.com/...' },
+              { key: 'instagram', icon: Instagram, label: 'Instagram URL', type: 'url', placeholder: 'https://instagram.com/...' },
+              { key: 'twitter', icon: Twitter, label: 'X (Twitter) URL', type: 'url', placeholder: 'https://x.com/...' }
+            ].map(({ key, icon: Icon, label, type, placeholder }) => (
+              <div key={key} className="bg-gray-900 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-gray-400 font-semibold flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    Personal Email
+                    <Icon className="w-4 h-4" />
+                    {label}
                   </label>
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={data.contact.personalEmail.visible}
+                      checked={data.contact[key]?.visible ?? true}
                       onChange={(e) => updateSection('contact', { 
-                        personalEmail: { ...data.contact.personalEmail, visible: e.target.checked } 
+                        [key]: { ...data.contact[key], visible: e.target.checked } 
                       })}
                       className="w-4 h-4"
                     />
@@ -1540,205 +1542,21 @@ const AdminDashboard = ({ onClose }) => {
                   </div>
                 </div>
                 <input
-                  type="email"
-                  value={data.contact.personalEmail.value}
+                  type={type}
+                  value={data.contact[key]?.value ?? ''}
                   onChange={(e) => updateSection('contact', { 
-                    personalEmail: { ...data.contact.personalEmail, value: e.target.value } 
+                    [key]: { ...data.contact[key], value: e.target.value } 
                   })}
-                  placeholder="your.email@gmail.com"
+                  placeholder={placeholder}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
                 />
               </div>
-
-              <div className="bg-gray-900 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-gray-400 font-semibold flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    Organization Email
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={data.contact.orgEmail.visible}
-                      onChange={(e) => updateSection('contact', { 
-                        orgEmail: { ...data.contact.orgEmail, visible: e.target.checked } 
-                      })}
-                      className="w-4 h-4"
-                    />
-                    <Eye className="w-4 h-4 text-gray-500" />
-                  </div>
-                </div>
-                <input
-                  type="email"
-                  value={data.contact.orgEmail.value}
-                  onChange={(e) => updateSection('contact', { 
-                    orgEmail: { ...data.contact.orgEmail, value: e.target.value } 
-                  })}
-                  placeholder="your.email@company.com"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
-                />
-              </div>
-
-              <div className="bg-gray-900 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-gray-400 font-semibold flex items-center gap-2">
-                    <Phone className="w-4 h-4" />
-                    Phone Number
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={data.contact.phone.visible}
-                      onChange={(e) => updateSection('contact', { 
-                        phone: { ...data.contact.phone, visible: e.target.checked } 
-                      })}
-                      className="w-4 h-4"
-                    />
-                    <Eye className="w-4 h-4 text-gray-500" />
-                  </div>
-                </div>
-                <input
-                  type="tel"
-                  value={data.contact.phone.value}
-                  onChange={(e) => updateSection('contact', { 
-                    phone: { ...data.contact.phone, value: e.target.value } 
-                  })}
-                  placeholder="+1 (555) 123-4567"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
-                />
-              </div>
-
-              <div className="bg-gray-900 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-gray-400 font-semibold flex items-center gap-2">
-                    <Linkedin className="w-4 h-4" />
-                    LinkedIn URL
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={data.contact.linkedin.visible}
-                      onChange={(e) => updateSection('contact', { 
-                        linkedin: { ...data.contact.linkedin, visible: e.target.checked } 
-                      })}
-                      className="w-4 h-4"
-                    />
-                    <Eye className="w-4 h-4 text-gray-500" />
-                  </div>
-                </div>
-                <input
-                  type="url"
-                  value={data.contact.linkedin.value}
-                  onChange={(e) => updateSection('contact', { 
-                    linkedin: { ...data.contact.linkedin, value: e.target.value } 
-                  })}
-                  placeholder="https://linkedin.com/in/yourprofile"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
-                />
-              </div>
-
-              <div className="bg-gray-900 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-gray-400 font-semibold flex items-center gap-2">
-                    <Github className="w-4 h-4" />
-                    GitHub URL
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={data.contact.github.visible}
-                      onChange={(e) => updateSection('contact', { 
-                        github: { ...data.contact.github, visible: e.target.checked } 
-                      })}
-                      className="w-4 h-4"
-                    />
-                    <Eye className="w-4 h-4 text-gray-500" />
-                  </div>
-                </div>
-                <input
-                  type="url"
-                  value={data.contact.github.value}
-                  onChange={(e) => updateSection('contact', { 
-                    github: { ...data.contact.github, value: e.target.value } 
-                  })}
-                  placeholder="https://github.com/yourusername"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
-                />
-              </div>
-
-              <div className="bg-gray-900 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-gray-400 font-semibold flex items-center gap-2">
-                    <Instagram className="w-4 h-4" />
-                    Instagram URL
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={data.contact.instagram.visible}
-                      onChange={(e) => updateSection('contact', { 
-                        instagram: { ...data.contact.instagram, visible: e.target.checked } 
-                      })}
-                      className="w-4 h-4"
-                    />
-                    <Eye className="w-4 h-4 text-gray-500" />
-                  </div>
-                </div>
-                <input
-                  type="url"
-                  value={data.contact.instagram.value}
-                  onChange={(e) => updateSection('contact', { 
-                    instagram: { ...data.contact.instagram, value: e.target.value } 
-                  })}
-                  placeholder="https://instagram.com/yourusername"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
-                />
-              </div>
-
-              <div className="bg-gray-900 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-gray-400 font-semibold flex items-center gap-2">
-                    <Twitter className="w-4 h-4" />
-                    X (Twitter) URL
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={data.contact.twitter.visible}
-                      onChange={(e) => updateSection('contact', { 
-                        twitter: { ...data.contact.twitter, visible: e.target.checked } 
-                      })}
-                      className="w-4 h-4"
-                    />
-                    <Eye className="w-4 h-4 text-gray-500" />
-                  </div>
-                </div>
-                <input
-                  type="url"
-                  value={data.contact.twitter.value}
-                  onChange={(e) => updateSection('contact', { 
-                    twitter: { ...data.contact.twitter, value: e.target.value } 
-                  })}
-                  placeholder="https://x.com/yourusername"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm"
-                />
-              </div>
-            </div>
+            ))}
           </div>
         )}
 
         {activeTab === 'settings' && (
           <div className="bg-gray-800 rounded-xl p-6 space-y-4">
-            <div>
-              <label className="block text-gray-400 mb-2">Admin Password</label>
-              <input
-                type="password"
-                value={data.settings.adminPassword}
-                onChange={(e) => updateSection('settings', { adminPassword: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
-              />
-              <p className="text-xs text-gray-500 mt-1">Default: admin123</p>
-            </div>
             <div className="flex items-center gap-3">
               <input
                 type="checkbox"
@@ -1747,6 +1565,10 @@ const AdminDashboard = ({ onClose }) => {
                 className="w-5 h-5"
               />
               <label className="text-gray-400">Show Resume Page</label>
+            </div>
+            <div className="border-t border-gray-700 pt-4">
+              <p className="text-gray-400 text-sm mb-2">💡 Login credentials are managed through Firebase Authentication</p>
+              <p className="text-gray-500 text-xs">To change admin email/password, go to Firebase Console → Authentication → Users</p>
             </div>
           </div>
         )}
@@ -1758,6 +1580,7 @@ const AdminDashboard = ({ onClose }) => {
 const App = () => {
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
     const checkAdminPath = () => {
@@ -1775,8 +1598,14 @@ const App = () => {
     
     window.addEventListener('popstate', handlePopState);
     
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsAuthenticated(!!user);
+      setCheckingAuth(false);
+    });
+    
     return () => {
       window.removeEventListener('popstate', handlePopState);
+      unsubscribe();
     };
   }, []);
 
@@ -1784,11 +1613,24 @@ const App = () => {
     setIsAuthenticated(true);
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    setIsAdminMode(false);
-    window.history.pushState({}, '', '/');
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setIsAuthenticated(false);
+      setIsAdminMode(false);
+      window.history.pushState({}, '', '/');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   if (isAdminMode) {
     return (
