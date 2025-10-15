@@ -205,7 +205,12 @@ const LaptopFrame = ({ image, title }) => {
       <div className="bg-gradient-to-b from-gray-800 to-gray-900 rounded-t-xl p-2 shadow-2xl">
         <div className="bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center">
           {image ? (
-            <img src={image} alt={title} className="w-full h-full object-cover" />
+            <img 
+              src={image} 
+              alt={title} 
+              className="w-full h-full object-contain"
+              style={{ objectFit: 'contain' }}
+            />
           ) : (
             <div className="text-blue-400 text-xl font-semibold px-4 text-center">
               {title}
@@ -329,14 +334,14 @@ const Hero = () => {
       <div className={`text-center max-w-4xl z-10 transition-all duration-1000 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
       }`}>
-        {/* <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-6">
           <div className="relative">
             <div className="absolute inset-0 bg-blue-500 blur-3xl opacity-20 animate-pulse"></div>
             <div className="relative bg-gray-800 p-4 rounded-2xl border border-blue-500/30">
               <Database className="w-16 h-16 text-blue-400" />
             </div>
           </div>
-        </div> */}
+        </div>
 
         <div className="mb-6 bg-gray-800/50 border border-gray-700 rounded-lg p-6 inline-block">
           <div className="flex items-center gap-2 mb-2">
