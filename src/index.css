@@ -25,3 +25,25 @@ html {
 h1, h2, h3, h4, h5, h6, p, span, div, button, input, textarea {
   font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
 }
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+
+@media (max-width: 640px) {
+  html {
+    font-size: 14px;
+  }
+}
+
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  overflow-x: hidden;
+}

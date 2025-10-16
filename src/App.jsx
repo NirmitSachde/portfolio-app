@@ -1,3 +1,4 @@
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Menu, X, Laptop, ExternalLink, Github, Download, Eye, EyeOff, Save, Plus, Trash2, LogOut, BarChart3, Database, TrendingUp, PieChart, LineChart, Activity, Code, Brain, Zap, Target, Lightbulb, ChevronDown, Mail, Phone, Linkedin, Instagram, Twitter } from 'lucide-react';
 import { db, auth } from './firebase';
@@ -172,6 +173,8 @@ const PortfolioProvider = ({ children }) => {
   return (
     <PortfolioContext.Provider value={{
       data,
+      setData,
+      saveToFirebase,
       updateSection,
       addProject,
       updateProject,
@@ -209,7 +212,6 @@ const LaptopFrame = ({ image, title }) => {
               src={image} 
               alt={title} 
               className="w-full h-full object-contain"
-              style={{ objectFit: 'contain' }}
             />
           ) : (
             <div className="text-blue-400 text-xl font-semibold px-4 text-center">
@@ -334,15 +336,6 @@ const Hero = () => {
       <div className={`text-center max-w-4xl z-10 transition-all duration-1000 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
       }`}>
-        <div className="flex justify-center mb-6">
-          <div className="relative">
-            <div className="absolute inset-0 bg-blue-500 blur-3xl opacity-20 animate-pulse"></div>
-            <div className="relative bg-gray-800 p-4 rounded-2xl border border-blue-500/30">
-              <Database className="w-16 h-16 text-blue-400" />
-            </div>
-          </div>
-        </div>
-
         <div className="mb-6 bg-gray-800/50 border border-gray-700 rounded-lg p-6 inline-block">
           <div className="flex items-center gap-2 mb-2">
             <div className="flex gap-1">
@@ -517,6 +510,7 @@ const About = () => {
 const Projects = () => {
   const { data } = usePortfolio();
   const [isVisible, setIsVisible] = useState(false);
+  const [expandedProjects, setExpandedProjects] = useState({});
   const visibleProjects = data.projects.filter(p => p.visible);
 
   useEffect(() => {
@@ -534,6 +528,13 @@ const Projects = () => {
 
     return () => observer.disconnect();
   }, []);
+
+  const toggleExpand = (projectId) => {
+    setExpandedProjects(prev => ({
+      ...prev,
+      [projectId]: !prev[projectId]
+    }));
+  };
 
   const getFileIcon = (fileName) => {
     const ext = fileName.toLowerCase().split('.').pop();
@@ -592,7 +593,21 @@ const Projects = () => {
                 <h3 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition">
                   {project.title}
                 </h3>
-                {project.description && <p className="text-gray-400 mb-4 text-sm">{project.description}</p>}
+                {project.description && (
+                  <div className="mb-4">
+                    <p className={`text-gray-400 text-sm ${expandedProjects[project.id] ? '' : 'line-clamp-3'}`}>
+                      {project.description}
+                    </p>
+                    {project.description.length > 150 && (
+                      <button
+                        onClick={() => toggleExpand(project.id)}
+                        className="text-blue-400 hover:text-blue-300 text-xs mt-1 hover:underline"
+                      >
+                        {expandedProjects[project.id] ? 'Read less' : 'Read more'}
+                      </button>
+                    )}
+                  </div>
+                )}
                 
                 <div className="flex gap-3 mb-4">
                   {project.githubLink && (
@@ -912,7 +927,7 @@ const AdminLogin = ({ onLogin }) => {
 };
 
 const AdminDashboard = ({ onClose }) => {
-  const { data, updateSection, addProject, updateProject, deleteProject, addResume, updateResume, deleteResume } = usePortfolio();
+  const { data, setData, saveToFirebase, updateSection, addProject, updateProject, deleteProject, addResume, updateResume, deleteResume } = usePortfolio();
   const [activeTab, setActiveTab] = useState('hero');
   const [newProject, setNewProject] = useState({
     title: '', description: '', coverPhoto: '', githubLink: '', liveLink: '', additionalFiles: []
@@ -983,8 +998,8 @@ const AdminDashboard = ({ onClose }) => {
   const handleCoverPhotoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 1000000) {
-        alert('File size should be less than 1MB for best performance');
+      if (file.size > 100000) {
+        alert('Image should be less than 100KB. Please use Imgur or other image hosting for larger images.');
         return;
       }
       const reader = new FileReader();
@@ -1001,8 +1016,8 @@ const AdminDashboard = ({ onClose }) => {
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 1000000) {
-        alert('File size should be less than 1MB. For larger files, use Google Drive links.');
+      if (file.size > 100000) {
+        alert('File should be less than 100KB. For larger files, use Google Drive links.');
         return;
       }
       const reader = new FileReader();
@@ -1046,6 +1061,18 @@ const AdminDashboard = ({ onClose }) => {
       addResume(newResume);
       setNewResume({ title: '', driveFileId: '' });
     }
+  };
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+
+    const items = Array.from(data.projects);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    const updatedData = { ...data, projects: items };
+    setData(updatedData);
+    saveToFirebase(updatedData);
   };
 
   return (
@@ -1251,31 +1278,20 @@ const AdminDashboard = ({ onClose }) => {
                 />
                 <input
                   type="text"
-                  placeholder="Cover Photo URL"
+                  placeholder="Cover Photo URL (Use Imgur: imgur.com)"
                   value={newProject.coverPhoto}
                   onChange={(e) => setNewProject({...newProject, coverPhoto: e.target.value})}
                   className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-white"
                 />
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-500 text-sm">OR</span>
-                  <label className="flex-1 cursor-pointer">
-                    <div className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-center hover:border-blue-500 transition">
-                      <span className="text-blue-400 text-sm">📁 Upload from Device (Max 1MB)</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleCoverPhotoUpload}
-                        className="hidden"
-                      />
-                    </div>
-                  </label>
+                <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-3 text-xs text-blue-300">
+                  💡 Recommended: Upload images to Imgur.com and paste the direct link here
                 </div>
                 {newProject.coverPhoto && (
                   <div className="bg-gray-900 rounded-lg p-2">
                     <img 
                       src={newProject.coverPhoto} 
                       alt="Cover preview" 
-                      className="w-full h-32 object-cover rounded"
+                      className="w-full h-32 object-contain rounded bg-black"
                     />
                   </div>
                 )}
@@ -1297,47 +1313,27 @@ const AdminDashboard = ({ onClose }) => {
                 <div className="border-t border-gray-700 pt-4">
                   <label className="block text-gray-400 mb-2 font-semibold">Additional Files</label>
                   <div className="bg-gray-900 rounded-lg p-4 space-y-3">
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="File Name"
-                          value={newFile.name}
-                          onChange={(e) => setNewFile({...newFile, name: e.target.value})}
-                          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
-                        />
-                        <input
-                          type="text"
-                          placeholder="File URL"
-                          value={newFile.url}
-                          onChange={(e) => setNewFile({...newFile, url: e.target.value})}
-                          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
-                        />
-                        <button
-                          onClick={handleAddFile}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition text-sm whitespace-nowrap"
-                        >
-                          Add
-                        </button>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 border-t border-gray-700"></div>
-                        <span className="text-gray-500 text-xs">OR</span>
-                        <div className="flex-1 border-t border-gray-700"></div>
-                      </div>
-                      
-                      <label className="block cursor-pointer">
-                        <div className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-center hover:border-blue-500 transition">
-                          <span className="text-blue-400 text-sm">📎 Upload File (Max 1MB)</span>
-                          <input
-                            type="file"
-                            accept=".pdf,.ipynb,.py,.csv,.xlsx,.xls,.doc,.docx,.ppt,.pptx,.txt,.json"
-                            onChange={handleFileUpload}
-                            className="hidden"
-                          />
-                        </div>
-                      </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="File Name"
+                        value={newFile.name}
+                        onChange={(e) => setNewFile({...newFile, name: e.target.value})}
+                        className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="File URL (Google Drive recommended)"
+                        value={newFile.url}
+                        onChange={(e) => setNewFile({...newFile, url: e.target.value})}
+                        className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
+                      />
+                      <button
+                        onClick={handleAddFile}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition text-sm whitespace-nowrap"
+                      >
+                        Add
+                      </button>
                     </div>
                     
                     {newProject.additionalFiles && newProject.additionalFiles.length > 0 && (
@@ -1393,55 +1389,80 @@ const AdminDashboard = ({ onClose }) => {
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-xl font-bold text-white">Existing Projects</h3>
-              {data.projects.map(project => (
-                <div key={project.id} className="bg-gray-800 rounded-xl p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <h4 className="text-lg font-bold text-white">{project.title}</h4>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEditProject(project)}
-                        className="text-blue-400 hover:text-blue-300"
-                        title="Edit"
-                      >
-                        <Save className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => updateProject(project.id, { visible: !project.visible })}
-                        className="text-gray-400 hover:text-white"
-                        title="Toggle Visibility"
-                      >
-                        {project.visible ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-                      </button>
-                      <button
-                        onClick={() => deleteProject(project.id)}
-                        className="text-red-400 hover:text-red-300"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-gray-400 text-sm mb-2">{project.description || 'No description'}</p>
-                  <div className="flex gap-4 text-xs text-gray-500 mb-2">
-                    {project.githubLink && <span>GitHub ✓</span>}
-                    {project.liveLink && <span>Live ✓</span>}
-                    {project.coverPhoto && <span>Cover ✓</span>}
-                  </div>
-                  {project.additionalFiles && project.additionalFiles.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-700">
-                      <p className="text-xs text-gray-500 mb-2">Files: {project.additionalFiles.length}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {project.additionalFiles.map((file, idx) => (
-                          <span key={idx} className="text-blue-400 text-xs bg-gray-900 px-2 py-1 rounded">
-                            {file.name}
-                          </span>
-                        ))}
-                      </div>
+              <h3 className="text-xl font-bold text-white">Existing Projects (Drag to Reorder)</h3>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="projects">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
+                      {data.projects.map((project, index) => (
+                        <Draggable key={project.id.toString()} draggableId={project.id.toString()} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              className={`bg-gray-800 rounded-xl p-6 transition-all ${
+                                snapshot.isDragging ? 'shadow-2xl ring-2 ring-blue-500 scale-105' : ''
+                              }`}
+                            >
+                              <div className="flex justify-between items-start mb-4">
+                                <div className="flex items-center gap-3">
+                                  <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                    <Menu className="w-5 h-5 text-gray-400 hover:text-blue-400" />
+                                  </div>
+
+                                  <h4 className="text-lg font-bold text-white">{project.title}</h4>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleEditProject(project)}
+                                    className="text-blue-400 hover:text-blue-300"
+                                    title="Edit"
+                                  >
+                                    <Save className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    onClick={() => updateProject(project.id, { visible: !project.visible })}
+                                    className="text-gray-400 hover:text-white"
+                                    title="Toggle Visibility"
+                                  >
+                                    {project.visible ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                                  </button>
+                                  <button
+                                    onClick={() => deleteProject(project.id)}
+                                    className="text-red-400 hover:text-red-300"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-5 h-5" />
+                                  </button>
+                                </div>
+                              </div>
+                              <p className="text-gray-400 text-sm mb-2">{project.description || 'No description'}</p>
+                              <div className="flex gap-4 text-xs text-gray-500 mb-2">
+                                {project.githubLink && <span>GitHub ✓</span>}
+                                {project.liveLink && <span>Live ✓</span>}
+                                {project.coverPhoto && <span>Cover ✓</span>}
+                              </div>
+                              {project.additionalFiles && project.additionalFiles.length > 0 && (
+                                <div className="mt-3 pt-3 border-t border-gray-700">
+                                  <p className="text-xs text-gray-500 mb-2">Files: {project.additionalFiles.length}</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {project.additionalFiles.map((file, idx) => (
+                                      <span key={idx} className="text-blue-400 text-xs bg-gray-900 px-2 py-1 rounded">
+                                        {file.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
                     </div>
                   )}
-                </div>
-              ))}
+                </Droppable>
+              </DragDropContext>
             </div>
           </div>
         )}
@@ -1663,4 +1684,4 @@ const App = () => {
   );
 };
 
-export default App;
+export default App;                                  
