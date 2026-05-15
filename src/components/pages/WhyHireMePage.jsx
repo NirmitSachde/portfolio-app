@@ -6,13 +6,28 @@ import Footer from '../layout/Footer';
 import { usePortfolio } from '../../App';
 
 const roles = [
-  { id: 'recruiter', label: 'Recruiter', icon: User, desc: 'Sourcing talent for data roles' },
-  { id: 'teamlead', label: 'Team Lead', icon: Users, desc: 'Building or growing a data team' },
-  { id: 'executive', label: 'CEO / CTO', icon: Crown, desc: 'Looking for data-driven impact' },
-  { id: 'manager', label: 'Manager', icon: Briefcase, desc: 'Hiring for your direct team' },
-  { id: 'product', label: 'Product Owner', icon: Target, desc: 'Need analytics support for product' },
-  { id: 'engineer', label: 'Engineer', icon: Code, desc: 'Looking for a data collaborator' },
+  { id: 'recruiter', label: 'Recruiter', icon: User, desc: 'Sourcing talent for data roles',
+    intro: 'I am every skill on your checklist. Not because I memorized a list, but because I have built something real with each one. I am always adding to what I know, and I do not wait to be told what to learn next. If the role needs it, I have either done it or I am already figuring it out.' },
+  { id: 'teamlead', label: 'Team Lead', icon: Users, desc: 'Building or growing a data team',
+    intro: 'I do not need to be managed into productivity. Point me at a problem and I will break it down, build it out and keep you in the loop without being asked. I have worked across analytics, engineering and science roles, so I know how to fit into a team and make the people around me faster.' },
+  { id: 'executive', label: 'CEO / CTO', icon: Crown, desc: 'Looking for data-driven impact',
+    intro: 'I translate data into decisions. Every project I have shipped started with a business question and ended with something someone could act on. I think about the whole picture, not just the code, and I take ownership from requirements through delivery. I lead when the work calls for it and I execute when it does not.' },
+  { id: 'manager', label: 'Manager', icon: Briefcase, desc: 'Hiring for your direct team',
+    intro: 'You will not have to explain things twice. I pick up context fast, I ask the right questions early, and I ship work that does not come back with revision requests. I have delivered across dashboards, pipelines, ML models and client-facing tools, so whatever your team needs next, I can start contributing from day one.' },
+  { id: 'product', label: 'Product Owner', icon: Target, desc: 'Need analytics support for product',
+    intro: 'You can hand me the product and I will take care of it. I have built and maintained data products end to end, from gathering requirements and writing specs to building the thing and iterating on user feedback. I know what it takes to keep a product running and improving, not just launched.' },
+  { id: 'engineer', label: 'Engineer', icon: Code, desc: 'Looking for a data collaborator',
+    intro: 'I write clean code, I document what I build, and I do not push things that break. I have worked with Python, SQL, R, JavaScript, React, FastAPI and a bunch of cloud and ML tooling. I care about how things are built, not just that they work, and I am always looking to learn the way your team does things.' },
 ];
+
+const roleTags = {
+  recruiter: ['DA', 'DS', 'DE', 'DV'],
+  teamlead: ['DA', 'DS', 'DE', 'DV'],
+  executive: ['DA', 'DS', 'DE', 'DV'],
+  manager: ['DA', 'DS', 'DE'],
+  product: ['DA', 'DE', 'DV', 'BI'],
+  engineer: ['DE', 'DS', 'DA'],
+};
 
 // Skill-to-proof mapping based on Nirmit's actual work
 // Projects are matched dynamically from Firebase skills arrays — no hardcoded project names
@@ -214,6 +229,31 @@ const WhyHireMePage = () => {
             {/* STEP 2: Skill selection */}
             {step === 2 && (
               <div className="animate-fade-in-up">
+                {/* Role-tailored intro paragraph */}
+                {selectedRole?.intro && (
+                  <div className="mb-6 p-4 rounded-lg" style={{ background: 'rgba(59, 130, 246, 0.06)', border: '1px solid var(--border-accent)' }}>
+                    <p style={{ fontFamily: 'var(--font-body)', fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+                      {selectedRole.intro}
+                    </p>
+                  </div>
+                )}
+
+                {/* Role tags (DA, DS, DE, DV, etc.) */}
+                {selectedRole && roleTags[selectedRole.id] && (
+                  <div className="flex flex-wrap gap-2 mb-5">
+                    {roleTags[selectedRole.id].map(tag => (
+                      <span key={tag} style={{
+                        fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
+                        padding: '3px 10px', borderRadius: '999px',
+                        background: 'rgba(59, 130, 246, 0.12)', color: 'var(--accent-bright)',
+                        border: '1px solid var(--border-accent)', letterSpacing: '0.05em', textTransform: 'uppercase'
+                      }}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '13px' }}>
                   What skills matter most for the role? Pick as many as you need.
                 </p>
