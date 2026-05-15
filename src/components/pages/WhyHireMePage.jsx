@@ -254,7 +254,7 @@ const WhyHireMePage = () => {
                       Areas of expertise
                     </span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-dim)' }}>
-                      — filter by domain
+                      filter by domain
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -275,7 +275,7 @@ const WhyHireMePage = () => {
                           onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.borderColor = 'var(--border-bright)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}}
                           onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}}
                         >
-                          {area.id} — {area.label}
+                          {area.label}
                         </button>
                       );
                     })}
@@ -289,7 +289,7 @@ const WhyHireMePage = () => {
                       Skills
                     </span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-dim)' }}>
-                      — pick what matters for the role
+                      pick what matters for the role
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -366,9 +366,6 @@ const WhyHireMePage = () => {
                         <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 600, color: 'var(--accent-bright)' }}>
                           {area?.label || areaId}
                         </h3>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(59, 130, 246, 0.12)', color: 'var(--accent)', border: '1px solid var(--border-accent)', fontWeight: 600 }}>
-                          {areaId}
-                        </span>
                       </div>
                     </div>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', padding: '3px 10px', borderRadius: '999px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent)', border: '1px solid var(--border-accent)' }}>
