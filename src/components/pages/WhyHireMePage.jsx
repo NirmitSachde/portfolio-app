@@ -20,14 +20,6 @@ const roles = [
     intro: 'I write clean code, I document what I build, and I do not push things that break. I have worked with Python, SQL, R, JavaScript, React, FastAPI and a bunch of cloud and ML tooling. I care about how things are built, not just that they work, and I am always looking to learn the way your team does things.' },
 ];
 
-const roleTags = {
-  recruiter: ['DA', 'DS', 'DE', 'DV'],
-  teamlead: ['DA', 'DS', 'DE', 'DV'],
-  executive: ['DA', 'DS', 'DE', 'DV'],
-  manager: ['DA', 'DS', 'DE'],
-  product: ['DA', 'DE', 'DV', 'BI'],
-  engineer: ['DE', 'DS', 'DA'],
-};
 
 // Skill-to-proof mapping based on Nirmit's actual work
 // Projects are matched dynamically from Firebase skills arrays — no hardcoded project names
@@ -88,9 +80,20 @@ const WhyHireMePage = () => {
   const [step, setStep] = useState(1);
   const [selectedRole, setSelectedRole] = useState(null);
   const [selectedSkills, setSelectedSkills] = useState([]);
+  const [selectedAreas, setSelectedAreas] = useState([]);
   const [typedText, setTypedText] = useState('');
 
   const availableSkills = Object.keys(skillProofs);
+
+  const areas = [
+    { id: 'DA', label: 'Data Analysis' },
+    { id: 'DS', label: 'Data Science' },
+    { id: 'DE', label: 'Data Engineering' },
+    { id: 'DV', label: 'Data Visualization' },
+    { id: 'ML', label: 'Machine Learning' },
+    { id: 'NLP', label: 'Natural Language Processing' },
+    { id: 'BI', label: 'Business Intelligence' },
+  ];
 
   // Typing effect for prompts
   useEffect(() => {
@@ -119,13 +122,19 @@ const WhyHireMePage = () => {
     );
   };
 
+  const toggleArea = (areaId) => {
+    setSelectedAreas(prev =>
+      prev.includes(areaId) ? prev.filter(a => a !== areaId) : [...prev, areaId]
+    );
+  };
+
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
     setTimeout(() => setStep(2), 400);
   };
 
   const handleContinue = () => {
-    if (selectedSkills.length > 0) setStep(3);
+    if (selectedSkills.length > 0 || selectedAreas.length > 0) setStep(3);
   };
 
   return (
@@ -238,37 +247,65 @@ const WhyHireMePage = () => {
                   </div>
                 )}
 
-                {/* Role tags (DA, DS, DE, DV, etc.) */}
-                {selectedRole && roleTags[selectedRole.id] && (
-                  <div className="flex flex-wrap gap-2 mb-5">
-                    {roleTags[selectedRole.id].map(tag => (
-                      <span key={tag} style={{
-                        fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600,
-                        padding: '3px 10px', borderRadius: '999px',
-                        background: 'rgba(59, 130, 246, 0.12)', color: 'var(--accent-bright)',
-                        border: '1px solid var(--border-accent)', letterSpacing: '0.05em', textTransform: 'uppercase'
-                      }}>
-                        {tag}
-                      </span>
+                {/* Areas of expertise */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      Areas of expertise
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-dim)' }}>
+                      — filter by domain
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {areas.map(area => {
+                      const isActive = selectedAreas.includes(area.id);
+                      return (
+                        <button
+                          key={area.id}
+                          onClick={() => toggleArea(area.id)}
+                          style={{
+                            fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: isActive ? 600 : 400,
+                            padding: '5px 14px', borderRadius: '999px', cursor: 'pointer',
+                            background: isActive ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-elevated)',
+                            color: isActive ? 'var(--accent-bright)' : 'var(--text-muted)',
+                            border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.borderColor = 'var(--border-bright)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}}
+                          onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}}
+                        >
+                          {area.id} — {area.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Skills */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      Skills
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-dim)' }}>
+                      — pick what matters for the role
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {availableSkills.map(skill => (
+                      <button
+                        key={skill}
+                        onClick={() => toggleSkill(skill)}
+                        className={`skill-btn ${selectedSkills.includes(skill) ? 'active' : ''}`}
+                      >
+                        {skill}
+                      </button>
                     ))}
                   </div>
-                )}
-
-                <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '13px' }}>
-                  What skills matter most for the role? Pick as many as you need.
-                </p>
-                <div className="flex flex-wrap gap-2 mb-6">
-                  {availableSkills.map(skill => (
-                    <button
-                      key={skill}
-                      onClick={() => toggleSkill(skill)}
-                      className={`skill-btn ${selectedSkills.includes(skill) ? 'active' : ''}`}
-                    >
-                      {skill}
-                    </button>
-                  ))}
                 </div>
-                {selectedSkills.length > 0 && (
+
+                {(selectedSkills.length > 0 || selectedAreas.length > 0) && (
                   <button
                     onClick={handleContinue}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-lg transition-all duration-200"
@@ -276,7 +313,7 @@ const WhyHireMePage = () => {
                     onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-dim)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'var(--accent)'}
                   >
-                    Generate report ({selectedSkills.length} skill{selectedSkills.length > 1 ? 's' : ''})
+                    Generate report ({selectedSkills.length + selectedAreas.length} selected)
                     <ChevronRight size={14} />
                   </button>
                 )}
@@ -287,7 +324,7 @@ const WhyHireMePage = () => {
             {step === 3 && (
               <div className="animate-fade-in-up">
                 <p style={{ color: 'var(--green)', marginBottom: '4px', fontSize: '13px' }}>
-                  Report generated. {selectedSkills.length} skill{selectedSkills.length > 1 ? 's' : ''} matched.
+                  Report generated. {selectedAreas.length > 0 ? `${selectedAreas.length} area${selectedAreas.length > 1 ? 's' : ''}` : ''}{selectedAreas.length > 0 && selectedSkills.length > 0 ? ' + ' : ''}{selectedSkills.length > 0 ? `${selectedSkills.length} skill${selectedSkills.length > 1 ? 's' : ''}` : ''} matched.
                 </p>
                 <p style={{ color: 'var(--text-dim)', marginBottom: '16px', fontSize: '12px' }}>
                   Scroll down to see the details.
@@ -313,6 +350,65 @@ const WhyHireMePage = () => {
         {/* PROOF CARDS (Step 3) */}
         {step === 3 && (
           <div className="space-y-6 stagger-children">
+
+            {/* Area-based project cards */}
+            {selectedAreas.length > 0 && selectedAreas.map(areaId => {
+              const area = areas.find(a => a.id === areaId);
+              const areaProjects = data.projects.filter(p =>
+                p.visible && p.tags?.some(t => t.toUpperCase() === areaId.toUpperCase())
+              );
+              return (
+                <div key={areaId} className="glow-card p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 rounded-full" style={{ background: 'var(--green)' }}></div>
+                        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 600, color: 'var(--accent-bright)' }}>
+                          {area?.label || areaId}
+                        </h3>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(59, 130, 246, 0.12)', color: 'var(--accent)', border: '1px solid var(--border-accent)', fontWeight: 600 }}>
+                          {areaId}
+                        </span>
+                      </div>
+                    </div>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', padding: '3px 10px', borderRadius: '999px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent)', border: '1px solid var(--border-accent)' }}>
+                      {areaProjects.length} project{areaProjects.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  {areaProjects.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {areaProjects.map((project) => (
+                        <button
+                          key={project.id}
+                          onClick={() => navigate(`/project/${project.id}`)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-all duration-200"
+                          style={{
+                            background: 'var(--bg-elevated)',
+                            border: '1px solid var(--border)',
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '11px',
+                            color: 'var(--text-secondary)',
+                            cursor: 'pointer',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-accent)'; e.currentTarget.style.color = 'var(--accent-bright)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                        >
+                          {project.title}
+                          <ArrowUpRight size={10} />
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--text-dim)' }}>
+                      No projects tagged with this area yet.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Skill proof cards */}
             {selectedSkills.map(skill => {
               const proof = skillProofs[skill];
               if (!proof) return null;
